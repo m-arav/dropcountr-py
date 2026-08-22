@@ -2,7 +2,7 @@ import httpx
 from uritemplate import URITemplate
 from typing import Any, Dict, Optional
 
-from models import (
+from .models import (
     CostSeries,
     GoalSeries,
     Leak,

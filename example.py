@@ -17,7 +17,7 @@ This will:
 from dotenv import load_dotenv
 load_dotenv()
 
-from dropcountr_client import DropcountrClient
+from dropcountr import DropcountrClient
 import os
 import sys
 from datetime import datetime, timedelta, date

@@ -6,7 +6,7 @@ A Python client library for the Dropcountr API.
 
 Basic usage:
 
-    >>> from dropcountr_client import DropcountrClient
+    >>> from dropcountr import DropcountrClient
     >>> with DropcountrClient(email="your@email.com", password="pass") as client:
     ...     client.login()
     ...     user = client.me()
@@ -16,8 +16,8 @@ Basic usage:
 :license: MIT
 """
 
-from .dropcountr_client import DropcountrClient
+from .client import DropcountrClient
 from . import models
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = ["DropcountrClient", "models"]

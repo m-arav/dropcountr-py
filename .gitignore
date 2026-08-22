@@ -145,3 +145,4 @@ dmypy.json
 /test/version_tmp/
 /tmp/
 
+src/*.egg-info/

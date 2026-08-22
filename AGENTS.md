@@ -4,7 +4,7 @@ Guidance for AI agents working on this repository.
 
 ## Project
 
-Python client library for the Dropcountr water-usage API (`dropcountr-py`, v0.1.0).
+Python client library for the Dropcountr water-usage API (`dropcountr-py`, v0.2.0).
 
 Core flow: cookie login → `/api/me` → premises → service connections (meters) → usage/cost/goal/leak series via URI templates.
 
@@ -45,18 +45,18 @@ Shared value types: `ResourceRef` (`@id`), `IriTemplate`, `Address`, `Quantity`,
   - Example: `2023-01-01/2023-01-04` covers Jan 1, 2, and 3 (three days).
 - **`period`**: `hour` | `day` | `week` | `month` | `billing`
   - `billing` is only valid when the `billing_period` feature flag is present on the service connection (also listed on utility features).
-  - Constants: `models.PERIODS`, `models.BILLING_PERIOD_FEATURE`, `models.Period`.
+  - Constants: `dropcountr.models.PERIODS`, `BILLING_PERIOD_FEATURE`, `Period`.
 
 ## Layout
 
 | Path | Purpose |
 |------|---------|
-| `dropcountr_client.py` | `DropcountrClient` — auth, GET helpers, series expansion |
-| `models.py` | Domain dataclasses parsed from API JSON (`User`, `Premise`, series, …) |
-| `__init__.py` | Package export (`DropcountrClient`, `models`) |
+| `src/dropcountr/client.py` | `DropcountrClient` — auth, GET helpers, series expansion |
+| `src/dropcountr/models.py` | Domain dataclasses parsed from API JSON (`User`, `Premise`, series, …) |
+| `src/dropcountr/__init__.py` | Package export (`DropcountrClient`, `models`) |
 | `example.py` | End-to-end demo (login, premises, usage/cost/leaks) |
-| `setup.py` | setuptools packaging |
-| `requirements.txt` | Runtime deps: httpx, uritemplate, python-dotenv |
+| `pyproject.toml` | Packaging (PyPI name `dropcountr-py`, import `dropcountr`) |
+| `requirements.txt` | Dev/example deps: httpx, uritemplate, python-dotenv |
 | `env.example` | Credential template (`DROPCOUNTR_EMAIL`, `DROPCOUNTR_PASS`) |
 
 ## Setup
@@ -73,7 +73,7 @@ Prefer the project `.venv` when running Python or installing packages.
 
 ## Conventions
 
-- Keep the client thin: authenticate, follow API URLs, expand URI templates, parse into `models.py` dataclasses.
+- Keep the client thin: authenticate, follow API URLs, expand URI templates, parse into `dropcountr.models` dataclasses.
 - Use the existing API Accept header: `application/vnd.dropcountr.api+json;version=2`.
 - Series methods (`usage` / `cost` / `goal` / `leak_usage_comps`) should keep sharing `_series()`; don't duplicate template expansion.
 - `leaks` only takes `during` (no `period`); `leak_usage_comps` takes a `Leak` plus `period` and `during`.

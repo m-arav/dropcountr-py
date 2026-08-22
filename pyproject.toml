@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dropcountr-py"
+version = "0.2.0"
+description = "A Python client library for the Dropcountr API"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Aravind Murali", email = "thearavindmurali@gmail.com" },
+]
+requires-python = ">=3.8"
+keywords = ["dropcountr", "api", "client", "water", "usage"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "httpx>=0.24.0",
+    "uritemplate>=4.1.1",
+]
+
+[project.optional-dependencies]
+examples = ["python-dotenv>=1.0.0"]
+
+[project.urls]
+Homepage = "https://github.com/m-arav/dropcountr-py"
+
+[tool.setuptools.packages.find]
+where = ["src"]

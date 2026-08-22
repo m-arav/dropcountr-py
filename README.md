@@ -4,9 +4,17 @@ A Python client library for the Dropcountr API, providing easy access to water u
 
 ## Installation
 
-### Quick Install (with existing Python environment)
+```bash
+pip install dropcountr-py
+```
+
+Or from a local checkout:
 
 ```bash
+pip install -e .
+# optional example deps
+pip install -e ".[examples]"
+# or
 pip install -r requirements.txt
 ```
 
@@ -48,7 +56,7 @@ This will:
 ### Basic Authentication and User Info
 
 ```python
-from dropcountr_client import DropcountrClient
+from dropcountr import DropcountrClient
 
 # Create client instance
 client = DropcountrClient(
@@ -70,7 +78,7 @@ client.logout()
 ### Context Manager (Recommended)
 
 ```python
-from dropcountr_client import DropcountrClient
+from dropcountr import DropcountrClient
 
 with DropcountrClient(email="your_email@example.com", password="your_password") as client:
     client.login()
