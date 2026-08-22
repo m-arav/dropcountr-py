@@ -131,12 +131,14 @@ goal_data = client.goal(
 ### Parameters
 
 #### Period
-Common period values:
-- `"hour"`: Hour Data
+- `"hour"`: Hourly data
 - `"day"`: Daily data
+- `"week"`: Weekly data
 - `"month"`: Monthly data
+- `"billing"`: Billing-period data — only when the `billing_period` feature flag is set on the service connection
 
 #### During
-Time range in ISO8601 interval format:
+Exclusive-ended ISO8601 interval (`start/end`). The end instant is **not** included.
+
 - Format: `"start_time/end_time"`
-- Example: `"2023-01-01/2023-01-31"`
+- Example: `"2023-01-01/2023-01-04"` covers Jan 1–3

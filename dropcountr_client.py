@@ -1,8 +1,18 @@
 import httpx
-import json
 from uritemplate import URITemplate
 from typing import Any, Dict, Optional
-from datetime import datetime, timedelta
+
+from models import (
+    CostSeries,
+    GoalSeries,
+    Leak,
+    LeakSeries,
+    LeakUsageCompSeries,
+    Premise,
+    ServiceConnection,
+    UsageSeries,
+    User,
+)
 
 
 class DropcountrClient:
@@ -70,62 +80,96 @@ class DropcountrClient:
         """Logout from Dropcountr API."""
         return self.get(self.LOGOUT_URL)
 
-    def me(self) -> Dict[str, Any]:
+    def me(self) -> User:
         """Get current user information."""
-        return self.get(self.USER_DISCOVERY_API)
+        return User.from_dict(self.get(self.USER_DISCOVERY_API))
 
-    def premise(self, url: str) -> Dict[str, Any]:
+    def premise(self, url: str) -> Premise:
         """Get premise information."""
-        return self.get(url)
+        return Premise.from_dict(self.get(url))
 
-    def service_connection(self, url: str) -> Dict[str, Any]:
+    def service_connection(self, url: str) -> ServiceConnection:
         """Get service connection information."""
-        return self.get(url)
+        return ServiceConnection.from_dict(self.get(url))
 
-    def usage(self, templated_url: str, period: str, during: str) -> Dict[str, Any]:
-        """Get usage data for a given period and time range."""
-        return self._series(templated_url=templated_url, period=period, during=during)
+    def usage(self, templated_url: str, period: str, during: str) -> UsageSeries:
+        """Get usage data for a given period and exclusive-ended time range."""
+        return UsageSeries.from_dict(
+            self._series(templated_url=templated_url, period=period, during=during)
+        )
 
-    def cost(self, templated_url: str, period: str, during: str) -> Dict[str, Any]:
-        """Get cost data for a given period and time range."""
-        return self._series(templated_url=templated_url, period=period, during=during)
+    def cost(self, templated_url: str, period: str, during: str) -> CostSeries:
+        """Get cost data for a given period and exclusive-ended time range."""
+        return CostSeries.from_dict(
+            self._series(templated_url=templated_url, period=period, during=during)
+        )
 
-    def goal(self, templated_url: str, period: str, during: str) -> Dict[str, Any]:
-        """Get goal data for a given period and time range."""
-        return self._series(templated_url=templated_url, period=period, during=during)
+    def goal(self, templated_url: str, period: str, during: str) -> GoalSeries:
+        """Get goal data for a given period and exclusive-ended time range."""
+        return GoalSeries.from_dict(
+            self._series(templated_url=templated_url, period=period, during=during)
+        )
+
+    def leaks(self, templated_url: str, during: str) -> LeakSeries:
+        """Get leaks for a service connection over an exclusive-ended time range.
+
+        Uses the meter's ``leaks`` IRI template (``{?during}`` only).
+        """
+        template = URITemplate(templated_url)
+        expanded_url = template.expand(during=self._format_time_range(during))
+        return LeakSeries.from_dict(self.get(expanded_url))
+
+    def leak(self, url: str) -> Leak:
+        """Get a single leak by resource URL."""
+        return Leak.from_dict(self.get(url))
+
+    def leak_usage_comps(
+        self, leak: Leak, period: str, during: str
+    ) -> LeakUsageCompSeries:
+        """Get actual vs expected usage for a leak over an exclusive-ended range.
+
+        Expands the leak's ``usage_comp_series`` template
+        (``{?during,period}``).
+        """
+        if not leak.usage_comp_series:
+            raise ValueError(f"Leak {leak.id} has no usage_comp_series template")
+        return LeakUsageCompSeries.from_dict(
+            self._series(
+                templated_url=leak.usage_comp_series.template,
+                period=period,
+                during=during,
+            )
+        )
 
     def _series(self, templated_url: str, period: str, during: str) -> Dict[str, Any]:
         """
         Expand URI template with period and during parameters, then fetch data.
-        
+
         Args:
-            templated_url: URI template string (e.g., "https://api.example.com/{period}/{during}")
-            period: Period identifier (e.g., "day", "week", "month")
-            during: ISO8601 interval string with dates or timestamps (e.g., "2023-01-01/2023-01-31" or "2023-01-01T00:00:00Z/2023-01-31T23:59:59Z")
+            templated_url: URI template string (e.g. usage{?during,period})
+            period: One of hour, day, week, month, billing.
+                ``billing`` requires the ``billing_period`` feature flag.
+            during: Exclusive-ended ISO8601 interval ``start/end``
+                (end is excluded). Example: ``2023-01-01/2023-01-04`` covers
+                Jan 1–3.
         """
         template = URITemplate(templated_url)
         expanded_url = template.expand(
             period=period,
-            during=self._format_time_range(during)
+            during=self._format_time_range(during),
         )
         return self.get(expanded_url)
 
     @staticmethod
     def _format_time_range(during: str) -> str:
         """
-        Format time range to ISO8601 format.
-        
-        Accepts ISO8601 interval strings with dates or timestamps.
-        Examples: 
-            - Dates: "2023-01-01/2023-01-31"
-            - Timestamps: "2023-01-01T00:00:00Z/2023-01-31T23:59:59Z"
-            - Mixed: "2023-01-01/2023-01-31T23:59:59Z"
+        Pass through an exclusive-ended ISO8601 interval.
+
+        Accepts ``start/end`` with dates or timestamps. The end instant is
+        exclusive. Examples:
+            - Dates: "2023-01-01/2023-01-04"  (covers Jan 1–3)
+            - Timestamps: "2023-01-01T00:00:00Z/2023-01-04T00:00:00Z"
         """
-        # If during is already in ISO8601 format, return as-is
         if isinstance(during, str) and '/' in during:
             return during
-        
-        # If it's a datetime range object or needs conversion, handle it here
-        # For now, assume the input is already in the correct format
         return during
-
