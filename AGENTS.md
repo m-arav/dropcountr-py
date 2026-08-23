@@ -4,7 +4,7 @@ Guidance for AI agents working on this repository.
 
 ## Project
 
-Python client library for the Dropcountr water-usage API (`dropcountr-py`, v0.2.0).
+Python client library for the Dropcountr water-usage API (`dropcountr-py`, v0.3.0).
 
 Core flow: cookie login → `/api/me` → premises → service connections (meters) → usage/cost/goal/leak series via URI templates.
 
