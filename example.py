@@ -84,7 +84,7 @@ def main():
             usages = client.usage(sc, period=period, during=during)
             for day in usages.members:
                 print(f"Day: {day.during}")
-                print(f"\t Total: {day.total_gallons}, Leaking?: {day.is_leaking}")
+                print(f"\t Total: {day.total_gallons}")
 
             costs = client.cost(sc, period=period, during=during)
             for day in costs.members:

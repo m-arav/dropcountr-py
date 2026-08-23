@@ -366,10 +366,9 @@ class User:
 @dataclass(frozen=True)
 class UsagePoint:
     during: str
-    total_gallons: float
-    irrigation_gallons: float = 0.0
-    irrigation_events: float = 0.0
-    is_leaking: bool = False
+    total_gallons: Optional[float] = None
+    irrigation_gallons: Optional[float] = None
+    irrigation_events: Optional[float] = None
 
     @classmethod
     def from_dict(
@@ -377,10 +376,9 @@ class UsagePoint:
     ) -> UsagePoint:
         return cls(
             during=localize_api_time(data["during"], timezone) or data["during"],
-            total_gallons=float(data.get("total_gallons") or 0.0),
-            irrigation_gallons=float(data.get("irrigation_gallons") or 0.0),
-            irrigation_events=float(data.get("irrigation_events") or 0.0),
-            is_leaking=bool(data.get("is_leaking", False)),
+            total_gallons=_opt_float(data.get("total_gallons")),
+            irrigation_gallons=_opt_float(data.get("irrigation_gallons")),
+            irrigation_events=_opt_float(data.get("irrigation_events")),
         )
 
 

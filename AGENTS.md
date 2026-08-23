@@ -4,7 +4,7 @@ Guidance for AI agents working on this repository.
 
 ## Project
 
-Python client library for the Dropcountr water-usage API (`dropcountr-py`, v0.3.0).
+Python client library for the Dropcountr water-usage API (`dropcountr-py`, v0.3.1).
 
 Core flow: cookie login → `/api/me` → premises → service connections (meters) → usage/cost/goal/leak series via URI templates.
 
@@ -70,6 +70,10 @@ service connections. Series methods then rewrite `during`, `started_at`,
 Prefer `client.usage(sc, ...)` / `cost` / `goal` / `leaks` so the zone on the
 connection is used. A raw template URL is left as the API sent it unless the
 caller passes `premise=` or `timezone=`.
+
+Hourly (and other) usage points use ``null`` gallons when the vendor has not
+reported that bucket yet. Keep ``total_gallons`` / ``irrigation_gallons`` as
+``None`` in that case — do not coerce to ``0.0``. Zero means a real reading.
 
 ## Layout
 
