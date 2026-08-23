@@ -20,6 +20,7 @@ flowchart TD
   ServiceConnection -->|usage_series| UsageSeries
   ServiceConnection -->|cost_series| CostSeries
   ServiceConnection -->|goal_series| GoalSeries
+  ServiceConnection -->|usage_stats| UsageStats
   ServiceConnection -->|leaks template| LeakSeries
   LeakSeries --> Leak
   Leak -->|via| ServiceConnection
@@ -34,6 +35,7 @@ flowchart TD
 | `Premise` | `ServiceConnection` | Embedded on the premise payload; `timezone` is copied onto each meter |
 | `Premise` | timezone | Inferred from `address` (not from `User`) |
 | `ServiceConnection` | usage / cost / goal | IRI templates `{?during,period}` → `client.usage` / `cost` / `goal` |
+| `ServiceConnection` | `UsageStats` | `usage_stats` `@id` link → `client.usage_stats` |
 | `ServiceConnection` | `Leak` | IRI template `{?during}` → `client.leaks` / `client.leak` |
 | `Leak` | meter | `via` → service connection `@id` |
 | `Leak` | usage comps | `usage_comp_series` → `client.leak_usage_comps(leak, period, during)` |

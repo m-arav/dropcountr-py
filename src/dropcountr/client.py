@@ -11,6 +11,7 @@ from .models import (
     Premise,
     ServiceConnection,
     UsageSeries,
+    UsageStats,
     User,
 )
 
@@ -91,6 +92,20 @@ class DropcountrClient:
     def service_connection(self, url: str) -> ServiceConnection:
         """Get service connection information."""
         return ServiceConnection.from_dict(self.get(url))
+
+    def usage_stats(self, source: Union[str, ServiceConnection]) -> UsageStats:
+        """Get meter-read stats for a service connection.
+
+        ``source`` is a ``ServiceConnection`` (uses its ``usage_stats`` link)
+        or the stats resource URL.
+        """
+        if isinstance(source, ServiceConnection):
+            if not source.usage_stats:
+                raise ValueError(f"Service connection {source.id} has no usage_stats")
+            url = source.usage_stats.id
+        else:
+            url = source
+        return UsageStats.from_dict(self.get(url))
 
     def usage(
         self,

@@ -69,6 +69,15 @@ def main():
         for sc in premise.service_connections:
             print(f"SC: {sc.id}, Meter ID: {sc.meter_id}")
 
+            if sc.usage_stats:
+                stats = client.usage_stats(sc)
+                print(
+                    f"\t Stats: freq={stats.read_frequency}, lag={stats.lag}, "
+                    f"completeness 7/30/90d="
+                    f"{stats.completeness_7d}/{stats.completeness_30d}/"
+                    f"{stats.completeness_90d}"
+                )
+
             if not sc.usage_series or not sc.cost_series:
                 continue
 

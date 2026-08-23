@@ -155,6 +155,7 @@ correct timestamps without an extra argument.
 ### Data Access
 - `premise(url)`: Fetch premise data
 - `service_connection(url)`: Fetch service connection data
+- `usage_stats(source)`: Fetch meter-read stats (`lag`, `read_frequency`, 7/30/90-day completeness)
 - `usage(source, period, during, *, premise=None, timezone=None)`: Fetch usage time series
 - `cost(source, period, during, *, premise=None, timezone=None)`: Fetch cost time series
 - `goal(source, period, during, *, premise=None, timezone=None)`: Fetch goal time series

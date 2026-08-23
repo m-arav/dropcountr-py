@@ -26,6 +26,12 @@ def _get(data: Dict[str, Any], *keys: str, default: Any = None) -> Any:
     return default
 
 
+def _opt_float(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    return float(value)
+
+
 @dataclass(frozen=True)
 class ResourceRef:
     """Hydra/JSON-LD resource link (`{"@id": "..."}`)."""
@@ -240,6 +246,31 @@ class ServiceConnection:
             timezone=timezone or data.get("timezone"),
             premise=ResourceRef.from_dict(data.get("premise")),
             usage_stats=ResourceRef.from_dict(data.get("usage_stats")),
+        )
+
+
+@dataclass(frozen=True)
+class UsageStats:
+    """Meter-read health for a service connection (``usage_stats`` link)."""
+
+    id: str
+    service_connection: Optional[ResourceRef] = None
+    lag: Optional[str] = None
+    read_frequency: Optional[str] = None
+    completeness_7d: Optional[float] = None
+    completeness_30d: Optional[float] = None
+    completeness_90d: Optional[float] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> UsageStats:
+        return cls(
+            id=data["@id"],
+            service_connection=ResourceRef.from_dict(data.get("service_connection")),
+            lag=data.get("lag"),
+            read_frequency=data.get("read_frequency"),
+            completeness_7d=_opt_float(data.get("7d_completeness")),
+            completeness_30d=_opt_float(data.get("30d_completeness")),
+            completeness_90d=_opt_float(data.get("90d_completeness")),
         )
 
 
