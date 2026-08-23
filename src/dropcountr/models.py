@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional
 
+from .timezone import localize_api_time, timezone_for_address
+
 # Series bucket sizes. ``billing`` requires the ``billing_period`` feature flag
 # on the service connection (or utility).
 Period = Literal["hour", "day", "week", "month", "billing"]
@@ -211,11 +213,14 @@ class ServiceConnection:
     goal_series: Optional[IriTemplate] = None
     comparable_usage: Optional[IriTemplate] = None
     leaks: Optional[IriTemplate] = None
+    timezone: Optional[str] = None
     premise: Optional[ResourceRef] = None
     usage_stats: Optional[ResourceRef] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ServiceConnection:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> ServiceConnection:
         return cls(
             id=data["@id"],
             name=data.get("name"),
@@ -232,6 +237,7 @@ class ServiceConnection:
             goal_series=IriTemplate.from_dict(data.get("goal_series")),
             comparable_usage=IriTemplate.from_dict(data.get("comparable_usage")),
             leaks=IriTemplate.from_dict(data.get("leaks")),
+            timezone=timezone or data.get("timezone"),
             premise=ResourceRef.from_dict(data.get("premise")),
             usage_stats=ResourceRef.from_dict(data.get("usage_stats")),
         )
@@ -252,11 +258,14 @@ class Premise:
     measurement_interval: Optional[str] = None
     monthly_goal_multiplier: Optional[float] = None
     address: Optional[Address] = None
+    timezone: Optional[str] = None
     utility: Optional[Utility] = None
     service_connections: List[ServiceConnection] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> Premise:
+        address = Address.from_dict(data.get("address"))
+        timezone = data.get("timezone") or timezone_for_address(address)
         return cls(
             id=data["@id"],
             name=data.get("name"),
@@ -270,10 +279,11 @@ class Premise:
             usd_alert_threshold=data.get("usd_alert_threshold"),
             measurement_interval=data.get("measurement_interval"),
             monthly_goal_multiplier=data.get("monthly_goal_multiplier"),
-            address=Address.from_dict(data.get("address")),
+            address=address,
+            timezone=timezone,
             utility=Utility.from_dict(data.get("utility")),
             service_connections=[
-                ServiceConnection.from_dict(sc)
+                ServiceConnection.from_dict(sc, timezone=timezone)
                 for sc in data.get("service_connections") or []
             ],
         )
@@ -331,9 +341,11 @@ class UsagePoint:
     is_leaking: bool = False
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> UsagePoint:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> UsagePoint:
         return cls(
-            during=data["during"],
+            during=localize_api_time(data["during"], timezone) or data["during"],
             total_gallons=float(data.get("total_gallons") or 0.0),
             irrigation_gallons=float(data.get("irrigation_gallons") or 0.0),
             irrigation_events=float(data.get("irrigation_events") or 0.0),
@@ -378,11 +390,13 @@ class CostItem:
     price_specification: Optional[ResourceRef] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> CostItem:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> CostItem:
         return cls(
             name=data.get("name") or "",
             price=float(data.get("price") or 0.0),
-            during=data.get("during"),
+            during=localize_api_time(data.get("during"), timezone),
             price_currency=data.get("priceCurrency"),
             quantity=Quantity.from_dict(data.get("quantity")),
             price_specification=ResourceRef.from_dict(data.get("priceSpecification")),
@@ -397,12 +411,17 @@ class CostPoint:
     items: List[CostItem] = field(default_factory=list)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> CostPoint:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> CostPoint:
         return cls(
-            during=data["during"],
+            during=localize_api_time(data["during"], timezone) or data["during"],
             price=float(data.get("price") or 0.0),
             price_currency=data.get("priceCurrency"),
-            items=[CostItem.from_dict(item) for item in data.get("items") or []],
+            items=[
+                CostItem.from_dict(item, timezone=timezone)
+                for item in data.get("items") or []
+            ],
         )
 
 
@@ -412,9 +431,11 @@ class GoalPoint:
     gallons: float
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> GoalPoint:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> GoalPoint:
         return cls(
-            during=data["during"],
+            during=localize_api_time(data["during"], timezone) or data["during"],
             gallons=float(data.get("gallons") or 0.0),
         )
 
@@ -429,11 +450,16 @@ class UsageSeries:
     context: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> UsageSeries:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> UsageSeries:
         return cls(
             id=_get(data, "@id"),
             total_items=int(data.get("totalItems") or 0),
-            members=[UsagePoint.from_dict(m) for m in data.get("member") or []],
+            members=[
+                UsagePoint.from_dict(m, timezone=timezone)
+                for m in data.get("member") or []
+            ],
             consumed_via=ResourceRef.from_dict(data.get("consumed_via")),
             type=data.get("@type", "Collection"),
             context=data.get("@context"),
@@ -450,11 +476,16 @@ class CostSeries:
     context: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> CostSeries:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> CostSeries:
         return cls(
             id=_get(data, "@id"),
             total_items=int(data.get("totalItems") or 0),
-            members=[CostPoint.from_dict(m) for m in data.get("member") or []],
+            members=[
+                CostPoint.from_dict(m, timezone=timezone)
+                for m in data.get("member") or []
+            ],
             charges_for=ResourceRef.from_dict(data.get("charges_for")),
             type=data.get("@type", "Collection"),
             context=data.get("@context"),
@@ -471,11 +502,16 @@ class GoalSeries:
     context: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> GoalSeries:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> GoalSeries:
         return cls(
             id=_get(data, "@id"),
             total_items=int(data.get("totalItems") or 0),
-            members=[GoalPoint.from_dict(m) for m in data.get("member") or []],
+            members=[
+                GoalPoint.from_dict(m, timezone=timezone)
+                for m in data.get("member") or []
+            ],
             goals_for=ResourceRef.from_dict(data.get("goals_for")),
             type=data.get("@type", "Collection"),
             context=data.get("@context"),
@@ -500,18 +536,18 @@ class Leak:
     activities: Optional[ResourceRef] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> Leak:
+    def from_dict(cls, data: Dict[str, Any], timezone: Optional[str] = None) -> Leak:
         return cls(
             id=data["@id"],
             via=ResourceRef.from_dict(data.get("via")),
-            started_at=data.get("started_at"),
-            resolved_at=data.get("resolved_at"),
+            started_at=localize_api_time(data.get("started_at"), timezone),
+            resolved_at=localize_api_time(data.get("resolved_at"), timezone),
             est_total_volume=Quantity.from_dict(data.get("est_total_volume")),
             est_hourly_volume=Quantity.from_dict(data.get("est_hourly_volume")),
             est_total_cost=Money.from_dict(data.get("est_total_cost")),
             is_ignored=bool(data.get("is_ignored", False)),
             is_archived=bool(data.get("is_archived", False)),
-            snoozed_until=data.get("snoozed_until"),
+            snoozed_until=localize_api_time(data.get("snoozed_until"), timezone),
             usage_comp_series=IriTemplate.from_dict(data.get("usage_comp_series")),
             activities=ResourceRef.from_dict(data.get("activities")),
         )
@@ -528,11 +564,15 @@ class LeakSeries:
     context: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> LeakSeries:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> LeakSeries:
         return cls(
             id=_get(data, "@id"),
             total_items=int(data.get("totalItems") or 0),
-            members=[Leak.from_dict(m) for m in data.get("member") or []],
+            members=[
+                Leak.from_dict(m, timezone=timezone) for m in data.get("member") or []
+            ],
             type=data.get("@type", "Collection"),
             context=data.get("@context"),
         )
@@ -547,9 +587,11 @@ class LeakUsageCompPoint:
     expected_usage: Optional[Quantity] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> LeakUsageCompPoint:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> LeakUsageCompPoint:
         return cls(
-            during=data["during"],
+            during=localize_api_time(data["during"], timezone) or data["during"],
             actual_usage=Quantity.from_dict(data.get("actual_usage")),
             expected_usage=Quantity.from_dict(data.get("expected_usage")),
         )
@@ -566,11 +608,16 @@ class LeakUsageCompSeries:
     context: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> LeakUsageCompSeries:
+    def from_dict(
+        cls, data: Dict[str, Any], timezone: Optional[str] = None
+    ) -> LeakUsageCompSeries:
         return cls(
             id=_get(data, "@id"),
             total_items=int(data.get("totalItems") or 0),
-            members=[LeakUsageCompPoint.from_dict(m) for m in data.get("member") or []],
+            members=[
+                LeakUsageCompPoint.from_dict(m, timezone=timezone)
+                for m in data.get("member") or []
+            ],
             type=data.get("@type", "Collection"),
             context=data.get("@context"),
         )

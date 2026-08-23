@@ -99,28 +99,51 @@ connection_data = client.service_connection("https://dropcountr.com/api/service_
 
 ### Time Series Data
 
+Pass the service connection from a premise so timestamps are rewritten into
+that premise's timezone (see [Timezones](#timezones)):
+
 ```python
-# Usage data
-usage_data = client.usage(
-    templated_url="https://dropcountr.com/api/usage{/period}{/during}",
+premise = client.premise("https://dropcountr.com/api/premises/123")
+sc = premise.service_connections[0]
+
+usage_data = client.usage(sc, period="day", during="2023-01-01/2023-01-31")
+cost_data = client.cost(sc, period="month", during="2023-01-01/2023-12-31")
+goal_data = client.goal(sc, period="week", during="2023-01-01/2023-01-07")
+```
+
+A raw IRI template still works. Pass `premise=` (or `timezone=`) if you want
+the same correction:
+
+```python
+client.usage(
+    sc.usage_series.template,
     period="day",
-    during="2023-01-01/2023-01-31"
-)
-
-# Cost data
-cost_data = client.cost(
-    templated_url="https://dropcountr.com/api/cost{/period}{/during}",
-    period="month",
-    during="2023-01-01/2023-12-31"
-)
-
-# Goal data
-goal_data = client.goal(
-    templated_url="https://dropcountr.com/api/goals{/period}{/during}",
-    period="week",
-    during="2023-01-01/2023-01-07"
+    during="2023-01-01/2023-01-31",
+    premise=premise,
 )
 ```
+
+### Timezones
+
+Dropcountr returns usage, cost, goal, and leak times in the **premise's local
+timezone**, but labels them as UTC (`Z` or `+00:00`). That is an API bug: a
+Pacific day starting at local midnight arrives as `2023-01-01T00:00:00Z`, which
+parsers treat as UTC midnight (4–8 hours off).
+
+This client keeps the wall-clock time and attaches the real offset for the
+premise. The IANA zone comes from the premise address (US state, refined with
+lat/lng when the state spans more than one zone) — not from `User.timezone`,
+which is a profile setting and can differ from where the meter is.
+
+```text
+API:     2023-08-01T00:00:00Z/2023-08-02T00:00:00Z
+Client:  2023-08-01T00:00:00-07:00/2023-08-02T00:00:00-07:00
+         (America/Los_Angeles, PDT)
+```
+
+`Premise.timezone` is filled when the premise is parsed. Service connections
+embedded on that payload get the same zone, so `client.usage(sc, ...)` can
+correct timestamps without an extra argument.
 
 ## API Methods
 
@@ -132,9 +155,14 @@ goal_data = client.goal(
 ### Data Access
 - `premise(url)`: Fetch premise data
 - `service_connection(url)`: Fetch service connection data
-- `usage(templated_url, period, during)`: Fetch usage time series
-- `cost(templated_url, period, during)`: Fetch cost time series
-- `goal(templated_url, period, during)`: Fetch goal time series
+- `usage(source, period, during, *, premise=None, timezone=None)`: Fetch usage time series
+- `cost(source, period, during, *, premise=None, timezone=None)`: Fetch cost time series
+- `goal(source, period, during, *, premise=None, timezone=None)`: Fetch goal time series
+- `leaks(source, during, *, premise=None, timezone=None)`: Fetch leaks for a meter
+- `leak(url, *, premise=None, timezone=None)`: Fetch one leak
+- `leak_usage_comps(leak, period, during, *, premise=None, timezone=None)`: Fetch leak usage comps
+
+`source` is a `ServiceConnection` (preferred — uses the premise timezone stamped on it) or an IRI template string.
 
 ### Parameters
 

@@ -1,6 +1,6 @@
 import httpx
 from uritemplate import URITemplate
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple, Union
 
 from .models import (
     CostSeries,
@@ -92,39 +92,114 @@ class DropcountrClient:
         """Get service connection information."""
         return ServiceConnection.from_dict(self.get(url))
 
-    def usage(self, templated_url: str, period: str, during: str) -> UsageSeries:
-        """Get usage data for a given period and exclusive-ended time range."""
+    def usage(
+        self,
+        source: Union[str, ServiceConnection],
+        period: str,
+        during: str,
+        *,
+        premise: Optional[Premise] = None,
+        timezone: Optional[str] = None,
+    ) -> UsageSeries:
+        """Get usage data for a given period and exclusive-ended time range.
+
+        ``source`` is a usage IRI template or a ``ServiceConnection``.
+        Timestamps are rewritten into the premise timezone.
+        """
+        url, tz = self._series_source(
+            source, "usage_series", timezone=timezone, premise=premise
+        )
         return UsageSeries.from_dict(
-            self._series(templated_url=templated_url, period=period, during=during)
+            self._series(templated_url=url, period=period, during=during),
+            timezone=tz,
         )
 
-    def cost(self, templated_url: str, period: str, during: str) -> CostSeries:
-        """Get cost data for a given period and exclusive-ended time range."""
+    def cost(
+        self,
+        source: Union[str, ServiceConnection],
+        period: str,
+        during: str,
+        *,
+        premise: Optional[Premise] = None,
+        timezone: Optional[str] = None,
+    ) -> CostSeries:
+        """Get cost data for a given period and exclusive-ended time range.
+
+        ``source`` is a cost IRI template or a ``ServiceConnection``.
+        Timestamps are rewritten into the premise timezone.
+        """
+        url, tz = self._series_source(
+            source, "cost_series", timezone=timezone, premise=premise
+        )
         return CostSeries.from_dict(
-            self._series(templated_url=templated_url, period=period, during=during)
+            self._series(templated_url=url, period=period, during=during),
+            timezone=tz,
         )
 
-    def goal(self, templated_url: str, period: str, during: str) -> GoalSeries:
-        """Get goal data for a given period and exclusive-ended time range."""
+    def goal(
+        self,
+        source: Union[str, ServiceConnection],
+        period: str,
+        during: str,
+        *,
+        premise: Optional[Premise] = None,
+        timezone: Optional[str] = None,
+    ) -> GoalSeries:
+        """Get goal data for a given period and exclusive-ended time range.
+
+        ``source`` is a goal IRI template or a ``ServiceConnection``.
+        Timestamps are rewritten into the premise timezone.
+        """
+        url, tz = self._series_source(
+            source, "goal_series", timezone=timezone, premise=premise
+        )
         return GoalSeries.from_dict(
-            self._series(templated_url=templated_url, period=period, during=during)
+            self._series(templated_url=url, period=period, during=during),
+            timezone=tz,
         )
 
-    def leaks(self, templated_url: str, during: str) -> LeakSeries:
+    def leaks(
+        self,
+        source: Union[str, ServiceConnection],
+        during: str,
+        *,
+        premise: Optional[Premise] = None,
+        timezone: Optional[str] = None,
+    ) -> LeakSeries:
         """Get leaks for a service connection over an exclusive-ended time range.
 
-        Uses the meter's ``leaks`` IRI template (``{?during}`` only).
+        ``source`` is the meter's ``leaks`` IRI template (``{?during}`` only)
+        or a ``ServiceConnection``. Timestamps are rewritten into the premise
+        timezone.
         """
-        template = URITemplate(templated_url)
+        url, tz = self._series_source(
+            source, "leaks", timezone=timezone, premise=premise
+        )
+        template = URITemplate(url)
         expanded_url = template.expand(during=self._format_time_range(during))
-        return LeakSeries.from_dict(self.get(expanded_url))
+        return LeakSeries.from_dict(self.get(expanded_url), timezone=tz)
 
-    def leak(self, url: str) -> Leak:
+    def leak(
+        self,
+        url: str,
+        *,
+        premise: Optional[Premise] = None,
+        timezone: Optional[str] = None,
+    ) -> Leak:
         """Get a single leak by resource URL."""
-        return Leak.from_dict(self.get(url))
+        return Leak.from_dict(
+            self.get(url),
+            timezone=self._connection_timezone(timezone, premise),
+        )
 
     def leak_usage_comps(
-        self, leak: Leak, period: str, during: str
+        self,
+        leak: Leak,
+        period: str,
+        during: str,
+        *,
+        premise: Optional[Premise] = None,
+        timezone: Optional[str] = None,
     ) -> LeakUsageCompSeries:
         """Get actual vs expected usage for a leak over an exclusive-ended range.
 
@@ -138,8 +213,44 @@ class DropcountrClient:
                 templated_url=leak.usage_comp_series.template,
                 period=period,
                 during=during,
-            )
+            ),
+            timezone=self._connection_timezone(timezone, premise),
         )
+
+    def _series_source(
+        self,
+        source: Union[str, ServiceConnection],
+        template_attr: str,
+        *,
+        timezone: Optional[str] = None,
+        premise: Optional[Premise] = None,
+    ) -> Tuple[str, Optional[str]]:
+        """Resolve a series template URL and the premise timezone to apply."""
+        tz = self._connection_timezone(timezone, premise)
+        if isinstance(source, ServiceConnection):
+            iri = getattr(source, template_attr)
+            if not iri:
+                raise ValueError(
+                    f"Service connection {source.id} has no {template_attr}"
+                )
+            return iri.template, tz or source.timezone
+        return source, tz
+
+    @staticmethod
+    def _connection_timezone(
+        timezone: Optional[str] = None,
+        premise: Optional[Premise] = None,
+    ) -> Optional[str]:
+        """IANA zone for series timestamps.
+
+        Prefer an explicit ``timezone``, then ``premise.timezone`` (inferred
+        from the premise address).
+        """
+        if timezone:
+            return timezone
+        if premise is not None:
+            return premise.timezone
+        return None
 
     def _series(self, templated_url: str, period: str, during: str) -> Dict[str, Any]:
         """

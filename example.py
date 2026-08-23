@@ -64,7 +64,7 @@ def main():
     period = "day"
 
     for premise in premises:
-        print(f"\nPremise: {premise.name}")
+        print(f"\nPremise: {premise.name} ({premise.timezone})")
 
         for sc in premise.service_connections:
             print(f"SC: {sc.id}, Meter ID: {sc.meter_id}")
@@ -72,20 +72,12 @@ def main():
             if not sc.usage_series or not sc.cost_series:
                 continue
 
-            usages = client.usage(
-                templated_url=sc.usage_series.template,
-                period=period,
-                during=during,
-            )
+            usages = client.usage(sc, period=period, during=during)
             for day in usages.members:
                 print(f"Day: {day.during}")
                 print(f"\t Total: {day.total_gallons}, Leaking?: {day.is_leaking}")
 
-            costs = client.cost(
-                templated_url=sc.cost_series.template,
-                period=period,
-                during=during,
-            )
+            costs = client.cost(sc, period=period, during=during)
             for day in costs.members:
                 price = round(day.price, 2)
                 print(f"Day: {day.during}")
@@ -97,13 +89,10 @@ def main():
             if not sc.leaks:
                 continue
 
-            leak_series = client.leaks(
-                templated_url=sc.leaks.template,
-                during=during,
-            )
+            leak_series = client.leaks(sc, during=during)
             print(f"Leaks ({leak_series.total_items}):")
             for summary in leak_series.members:
-                leak = client.leak(summary.id)
+                leak = client.leak(summary.id, premise=premise)
                 volume = leak.est_total_volume
                 hourly = leak.est_hourly_volume
                 cost = leak.est_total_cost
@@ -129,7 +118,9 @@ def main():
                     f"Snoozed until: {leak.snoozed_until}"
                 )
 
-                comps = client.leak_usage_comps(leak, period=period, during=during)
+                comps = client.leak_usage_comps(
+                    leak, period=period, during=during, premise=premise
+                )
                 print(f"\t\t Usage comps ({comps.total_items}):")
                 for point in comps.members:
                     actual = point.actual_usage.value if point.actual_usage else None
